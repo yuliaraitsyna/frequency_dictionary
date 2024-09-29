@@ -1,10 +1,13 @@
-import './App.css';
+import React from 'react';
+import { Container } from '@mui/material';
+import FileUploader from './components/FileUploader';
 
-function App() {
+const App: React.FC = () => {
   return (
-    <div className="App">
-    </div>
+    <Container>
+      <FileUploader />
+    </Container>
   );
-}
+};
 
 export default App;
