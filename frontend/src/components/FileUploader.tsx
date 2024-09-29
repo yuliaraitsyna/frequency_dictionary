@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, CircularProgress, Container, Typography, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { Button, CircularProgress, Container, Typography, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
 import DictionaryList from './DictionaryList';
 import { Action } from '../models/Action';
 
@@ -9,6 +9,8 @@ const FileUploader: React.FC = () => {
     const [response, setResponse] = useState<{ word: string; frequency: number }[] | null>(null);
     const [loading, setLoading] = useState(false);
     const [sortOption, setSortOption] = useState<Action>(Action.SORT_WORD_ASC);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredResponse, setFilteredResponse] = useState<{ word: string; frequency: number }[] | null>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -24,13 +26,17 @@ const FileUploader: React.FC = () => {
         setLoading(true);
 
         try {
-            const res = await axios.post('http://127.0.0.1:8000/upload_file', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            console.log(res.data);
+            const res = await axios.post(
+                `http://127.0.0.1:8000/upload_file`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
             setResponse(res.data);
+            setFilteredResponse(res.data);
         } catch (error) {
             console.error('Error uploading file:', error);
             setResponse(null);
@@ -39,23 +45,46 @@ const FileUploader: React.FC = () => {
         }
     };
 
-    const sortDictionary = (data: { word: string; frequency: number }[]) => {
-        if (!data) return [];
-        switch (sortOption) {
-            case Action.SORT_WORD_ASC:
-                return data.sort((a, b) => a.word.localeCompare(b.word));
-            case Action.SORT_WORD_DESC:
-                return data.sort((a, b) => b.word.localeCompare(a.word));
-            case Action.SORT_FREQUENCY_ASC:
-                return data.sort((a, b) => a.frequency - b.frequency);
-            case Action.SORT_FREQUENCY_DESC:
-                return data.sort((a, b) => b.frequency - a.frequency);
-            default:
-                return data;
+    const handleSort = async () => {
+        if (!response) return;
+        setLoading(true);
+        try {
+            console.log(sortOption)
+            const res = await axios.get(
+                `http://127.0.0.1:8000/sort`, {
+                    params: {
+                        sortOption: sortOption,
+                    },
+                }
+            );
+            setFilteredResponse(res.data);
+        } catch (error) {
+            console.error('Error sorting data:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const sortedResponse = response && sortDictionary(response);
+    const handleSearch = async () => {
+        if (!response || !searchTerm) return; 
+        
+        setLoading(true);
+        try {
+            const res = await axios.get(
+                `http://127.0.0.1:8000/search`, {
+                    params: {
+                        searchTerm: searchTerm,
+                    },
+                }
+            );
+            setFilteredResponse(res.data);
+        } catch (error) {
+            console.error('Error searching data:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
 
     return (
         <Container maxWidth="md" style={{ margin: "5%" }}>
@@ -69,24 +98,39 @@ const FileUploader: React.FC = () => {
             >
                 Upload
             </Button>
+
             <Container>
-                <Container>
-                    <FormControl style={{ marginTop: '10px' }}>
-                        <InputLabel id="sort-select-label"></InputLabel>
-                        <Select
-                            labelId="sort-select-label"
-                            value={sortOption}
-                            onChange={(e) => setSortOption(e.target.value as Action)}
-                        >
-                            <MenuItem value={Action.SORT_WORD_ASC}>{Action.SORT_WORD_ASC}</MenuItem>
-                            <MenuItem value={Action.SORT_WORD_DESC}>{Action.SORT_WORD_DESC}</MenuItem>
-                            <MenuItem value={Action.SORT_FREQUENCY_ASC}>{Action.SORT_FREQUENCY_ASC}</MenuItem>
-                            <MenuItem value={Action.SORT_FREQUENCY_DESC}>{Action.SORT_FREQUENCY_DESC}</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Container>
+                <TextField
+                    label="Search Word"
+                    variant="outlined"
+                    fullWidth
+                    margin="normal"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                />
+                <Button onClick={handleSearch} variant="contained" color="primary" style={{ marginTop: '10px' }}>
+                    Search
+                </Button>
+            </Container>
+
+            <FormControl fullWidth style={{ marginTop: '10px' }}>
+                <InputLabel id="sort-select-label">Sort By</InputLabel>
+                <Select
+                    labelId="sort-select-label"
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value as Action)}
+                >
+                    <MenuItem value={Action.SORT_WORD_ASC}>{Action.SORT_WORD_ASC}</MenuItem>
+                    <MenuItem value={Action.SORT_WORD_DESC}>{Action.SORT_WORD_DESC}</MenuItem>
+                    <MenuItem value={Action.SORT_FREQUENCY_ASC}>{Action.SORT_FREQUENCY_ASC}</MenuItem>
+                    <MenuItem value={Action.SORT_FREQUENCY_DESC}>{Action.SORT_FREQUENCY_DESC}</MenuItem>
+                </Select>
+                <Button onClick={handleSort} variant="contained" style={{ marginTop: '10px' }}>Sort</Button>
+            </FormControl>
+
+            <Container>
                 {loading && <CircularProgress style={{ marginTop: '10px' }} />}
-                {sortedResponse && <DictionaryList dictionary={sortedResponse} />}
+                {filteredResponse && <DictionaryList dictionary={filteredResponse} />}
             </Container>
         </Container>
     );
