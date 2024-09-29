@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Button, CircularProgress, Container, Typography, Select, MenuItem, FormControl, InputLabel, TextField } from '@mui/material';
+import { Button, CircularProgress, Container, Typography, Select, MenuItem, FormControl, InputLabel, TextField, Pagination } from '@mui/material';
 import DictionaryList from './DictionaryList';
 import { Action } from '../models/Action';
 
+interface DictionaryEntry {
+    word: string;
+    frequency: number;
+}
+
 const FileUploader: React.FC = () => {
     const [file, setFile] = useState<File | null>(null);
-    const [response, setResponse] = useState<{ word: string; frequency: number }[] | null>(null);
+    const [response, setResponse] = useState<DictionaryEntry[]>([]);
     const [loading, setLoading] = useState(false);
-    const [sortOption, setSortOption] = useState<Action>(Action.SORT_WORD_ASC);
+    const [sortOption, setSortOption] = useState<Action>(Action.SORT_FREQUENCY_DESC);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filteredResponse, setFilteredResponse] = useState<{ word: string; frequency: number }[] | null>(null);
+    const [totalItems, setTotalItems] = useState<number>(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 100;
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
@@ -18,11 +25,12 @@ const FileUploader: React.FC = () => {
         }
     };
 
-    const handleUpload = async () => {
+    const fetchPageData = async (page: number) => {
         if (!file) return;
 
         const formData = new FormData();
         formData.append('file', file);
+        
         setLoading(true);
 
         try {
@@ -33,68 +41,50 @@ const FileUploader: React.FC = () => {
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
+                    params: {
+                        page,
+                        limit: itemsPerPage,
+                        sortOption,
+                        searchTerm
+                    },
                 }
             );
-            setResponse(res.data);
-            setFilteredResponse(res.data);
+
+            setResponse(res.data.items);
+            setTotalItems(res.data.total);
         } catch (error) {
-            console.error('Error uploading file:', error);
-            setResponse(null);
+            console.error('Error fetching page data:', error);
+            setResponse([]);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSort = async () => {
-        if (!response) return;
-        setLoading(true);
-        try {
-            console.log(sortOption)
-            const res = await axios.get(
-                `http://127.0.0.1:8000/sort`, {
-                    params: {
-                        sortOption: sortOption,
-                    },
-                }
-            );
-            setFilteredResponse(res.data);
-        } catch (error) {
-            console.error('Error sorting data:', error);
-        } finally {
-            setLoading(false);
-        }
+    const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
+        setCurrentPage(page);
+        fetchPageData(page);
     };
 
-    const handleSearch = async () => {
-        if (!response || !searchTerm) return; 
-        
-        setLoading(true);
-        try {
-            const res = await axios.get(
-                `http://127.0.0.1:8000/search`, {
-                    params: {
-                        searchTerm: searchTerm,
-                    },
-                }
-            );
-            setFilteredResponse(res.data);
-        } catch (error) {
-            console.error('Error searching data:', error);
-        } finally {
-            setLoading(false);
-        }
+    const handleSearch = () => {
+        setCurrentPage(1);
+        fetchPageData(1);
     };
-    
+
+    const handleSort = () => {
+        setCurrentPage(1);
+        fetchPageData(1);
+    };
 
     return (
         <Container maxWidth="md" style={{ margin: "5%" }}>
             <Typography variant='h5'>Upload Dictionary</Typography>
             <input type="file" onChange={handleFileChange} />
             <Button 
-                onClick={handleUpload} 
+                onClick={() => fetchPageData(1)} 
                 variant="contained" 
                 color="primary" 
                 style={{ marginTop: '10px' }}
+                disabled={loading}
             >
                 Upload
             </Button>
@@ -106,9 +96,10 @@ const FileUploader: React.FC = () => {
                     fullWidth
                     margin="normal"
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    onChange={e => {setSearchTerm(e.target.value) 
+                        console.log(searchTerm)}}
                 />
-                <Button onClick={handleSearch} variant="contained" color="primary" style={{ marginTop: '10px' }}>
+                <Button onClick={handleSearch} variant="contained" color="primary" style={{ marginTop: '10px' }} disabled={loading}>
                     Search
                 </Button>
             </Container>
@@ -118,19 +109,26 @@ const FileUploader: React.FC = () => {
                 <Select
                     labelId="sort-select-label"
                     value={sortOption}
-                    onChange={(e) => setSortOption(e.target.value as Action)}
+                    onChange={(e) => {setSortOption(e.target.value as Action)}}
                 >
                     <MenuItem value={Action.SORT_WORD_ASC}>{Action.SORT_WORD_ASC}</MenuItem>
                     <MenuItem value={Action.SORT_WORD_DESC}>{Action.SORT_WORD_DESC}</MenuItem>
                     <MenuItem value={Action.SORT_FREQUENCY_ASC}>{Action.SORT_FREQUENCY_ASC}</MenuItem>
                     <MenuItem value={Action.SORT_FREQUENCY_DESC}>{Action.SORT_FREQUENCY_DESC}</MenuItem>
                 </Select>
-                <Button onClick={handleSort} variant="contained" style={{ marginTop: '10px' }}>Sort</Button>
+                <Button onClick={handleSort} variant="contained" style={{ marginTop: '10px' }} disabled={loading}>Sort</Button>
             </FormControl>
 
             <Container>
                 {loading && <CircularProgress style={{ marginTop: '10px' }} />}
-                {filteredResponse && <DictionaryList dictionary={filteredResponse} />}
+                <DictionaryList dictionary={response} />
+                <Pagination
+                    count={Math.ceil(totalItems / itemsPerPage)}
+                    page={currentPage}
+                    onChange={handlePageChange}
+                    color="primary"
+                    style={{ marginTop: '20px' }}
+                />
             </Container>
         </Container>
     );
