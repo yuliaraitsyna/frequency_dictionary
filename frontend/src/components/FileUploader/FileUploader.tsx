@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Button, CircularProgress, Container, Typography, Select, MenuItem, FormControl, InputLabel, TextField, Pagination, Dialog, DialogContent } from '@mui/material';
 import DictionaryList from '../DictionaryList/DictionaryList';
@@ -25,21 +25,43 @@ const FileUploader: React.FC = () => {
     const [open, setOpen] = useState(false);
     const [formAction, setFormAction] = useState<FormAction>(FormAction.ADD);
     const [editedWord, setEditedWord] = useState<Word>(defaultWord);
-    
+
     const itemsPerPage = 100;
+
+    const clearUploadedFiles = async () => {
+        try {
+            const response = await fetch("http://localhost:8000/clear_uploaded_files", {
+                method: "POST",
+                credentials: "include",
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log(data.message);
+        } catch (error) {
+            console.error("Error clearing uploaded files:", error);
+        }
+    };
+
+    useEffect(() => {
+        clearUploadedFiles();
+    }, []);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
             setFile(event.target.files[0]);
         }
     };
-    
+
     const fetchPageData = async (page: number) => {
         if (!file) return;
 
         const formData = new FormData();
         formData.append('file', file);
-        
+
         setLoading(true);
 
         try {
@@ -68,6 +90,10 @@ const FileUploader: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const handleUpdate = () => {
+        fetchPageData(currentPage);
+    }
 
     const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
         setCurrentPage(page);
@@ -102,10 +128,13 @@ const FileUploader: React.FC = () => {
         <Container maxWidth="md" style={{ margin: "5%" }}>
             <Typography variant='h5'>Upload Dictionary</Typography>
             <input type="file" onChange={handleFileChange} />
-            <Button 
-                onClick={() => fetchPageData(1)} 
-                variant="contained" 
-                color="primary" 
+            <Button
+                onClick={() => {
+                    clearUploadedFiles();
+                    fetchPageData(1);
+                }}
+                variant="contained"
+                color="primary"
                 style={{ marginTop: '10px' }}
                 disabled={loading}
             >
@@ -119,8 +148,10 @@ const FileUploader: React.FC = () => {
                     fullWidth
                     margin="normal"
                     value={searchTerm}
-                    onChange={e => {setSearchTerm(e.target.value) 
-                        console.log(searchTerm)}}
+                    onChange={e => {
+                        setSearchTerm(e.target.value)
+                        console.log(searchTerm)
+                    }}
                 />
                 <Button onClick={handleSearch} variant="contained" color="primary" style={{ marginTop: '10px' }} disabled={loading}>
                     Search
@@ -132,7 +163,7 @@ const FileUploader: React.FC = () => {
                 <Select
                     labelId="sort-select-label"
                     value={sortOption}
-                    onChange={(e) => {setSortOption(e.target.value as Action)}}
+                    onChange={(e) => { setSortOption(e.target.value as Action) }}
                 >
                     <MenuItem value={Action.SORT_WORD_ASC}>{Action.SORT_WORD_ASC}</MenuItem>
                     <MenuItem value={Action.SORT_WORD_DESC}>{Action.SORT_WORD_DESC}</MenuItem>
@@ -146,7 +177,7 @@ const FileUploader: React.FC = () => {
 
             <Container>
                 {loading && <CircularProgress style={{ marginTop: '10px' }} />}
-                <DictionaryList dictionary={response} openForm={handleOpen} setDictionary={setResponse}/>
+                <DictionaryList dictionary={response} openForm={handleOpen} setDictionary={handleUpdate} />
                 <Pagination
                     count={Math.ceil(totalItems / itemsPerPage)}
                     page={currentPage}
@@ -158,7 +189,7 @@ const FileUploader: React.FC = () => {
 
             <Dialog open={open} onClose={handleClose}>
                 <DialogContent>
-                    <Form action={formAction} word={editedWord} close={handleClose}/>
+                    <Form action={formAction} word={editedWord} close={handleClose} />
                 </DialogContent>
             </Dialog>
         </Container>

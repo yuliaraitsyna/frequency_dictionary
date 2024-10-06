@@ -10,7 +10,7 @@ interface FormProps {
   close: (status: boolean) => void;
 }
 
-const Form: React.FC<FormProps> = ({ action, word, close }) => {
+const Form: React.FC<FormProps> = ({ action, word, close}) => {
   const [formWord, setFormWord] = useState<Word>(word);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -25,6 +25,7 @@ const Form: React.FC<FormProps> = ({ action, word, close }) => {
           },
         }
       );
+      //updateDictionary(res.data.word);
       close(true);
     } catch (err) {
       console.error("Error adding word:", err);
@@ -43,6 +44,7 @@ const Form: React.FC<FormProps> = ({ action, word, close }) => {
           },
         }
       );
+      //updateDictionary(res.data.word);
       close(true);
     } catch (err) {
       console.error("Error updating word:", err);

@@ -10,6 +10,7 @@ backend/env/
 backend/.coverage
 backend/coverage.xml
 backend/htmlcov/
+backend/uploaded_files
 
 # Ignore FastAPI/Python log files
 *.log

@@ -6,7 +6,7 @@ import { FormAction } from "../Form/model/FormAction";
 interface DictionaryListProps {
     dictionary: Word[] | null;
     openForm: (action: FormAction, word: Word) => void;
-    setDictionary: (dictionary: Word[]) => void;
+    setDictionary: () => void;
 }
 
 const DictionaryList: React.FC<DictionaryListProps> = ({ dictionary, openForm, setDictionary}) => {
@@ -20,10 +20,8 @@ const DictionaryList: React.FC<DictionaryListProps> = ({ dictionary, openForm, s
             const response = await fetch(`http://localhost:8000/delete_word/${word.id}`, {
                 method: "DELETE",
             });
-
             if (response.ok) {
-                const updatedDictionary = dictionary?.filter((entry) => entry.id !== word.id) || [];
-                setDictionary(updatedDictionary);
+                setDictionary();
             } else {
                 console.error("Failed to delete word");
             }

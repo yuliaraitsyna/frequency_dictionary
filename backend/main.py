@@ -1,3 +1,5 @@
+import os
+import shutil
 from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -20,13 +22,24 @@ class SortOption(str, Enum):
     SORT_FREQUENCY_ASC = "Sort by frequency asc"
 
 frequency_dict = []
+uploaded_file_path = None
 
 def get_next_id():
     if not frequency_dict:
-        return 1 
+        return 1
     else:
         max_id = max(entry['id'] for entry in frequency_dict)
         return max_id + 1
+
+def save_to_file():
+    global uploaded_file_path
+    if uploaded_file_path is None:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    
+    print(frequency_dict[0])
+    with open(uploaded_file_path, 'w', encoding='utf-8') as f:
+        for entry in frequency_dict:
+            f.write(f"{entry['word']}\t{entry['frequency']}\n")
 
 @app.post("/upload_file")
 async def upload_file(
@@ -37,17 +50,29 @@ async def upload_file(
     searchTerm: Optional[str] = None,
     fetch_all: Optional[bool] = False
 ):
-    global frequency_dict
-    content = await file.read()
+    global frequency_dict, uploaded_file_path
     
     try:
-        text = content.decode('utf-8')
+        if uploaded_file_path is None:
+            content = await file.read()
+            text = content.decode('utf-8')
+
+            uploaded_file_path = f"./uploaded_files/{file.filename}"
+            os.makedirs(os.path.dirname(uploaded_file_path), exist_ok=True)
+            
+            with open(uploaded_file_path, 'wb') as f:
+                f.write(content)
+        else:
+            with open(uploaded_file_path, 'rb') as f:
+                content = f.read()
+            text = content.decode('utf-8')
+
         frequency_dict = [
             {"id": index + 1, "word": word, "frequency": int(freq)}
             for index, line in enumerate(text.splitlines()) if line.strip()
             for word, freq in [line.split('\t')]
         ]
-        
+
         sorted_dict = await sort_dictionary(sortOption)
 
         if searchTerm:
@@ -75,7 +100,8 @@ async def upload_file(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing file: {e}")
+        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
+
 
 async def sort_dictionary(sortOption: SortOption):
     global frequency_dict
@@ -98,11 +124,12 @@ async def sort_dictionary(sortOption: SortOption):
 async def add_word(word: str = Body(...), frequency: int = Body(...)):
     global frequency_dict
     if any(entry['word'] == word for entry in frequency_dict):
-        raise HTTPException(status_code=400, delail="Word already exists.")
+        raise HTTPException(status_code=400, detail="Word already exists.")
     
     new_id = get_next_id()
     new_word = {"id": new_id, "word": word, "frequency": frequency}
     frequency_dict.append(new_word)
+    save_to_file()  # Save the added word to the uploaded file
     return {"message": "Word added successfully", "word": new_word}
 
 @app.put("/edit_word/{word_id}")
@@ -114,6 +141,7 @@ async def edit_word(word_id: int, word: Optional[str] = Body(None), frequency: O
                 entry['word'] = word
             if frequency is not None:
                 entry['frequency'] = frequency
+            save_to_file()
             return {"message": "Word updated successfully", "word": entry}
     
     raise HTTPException(status_code=404, detail="Word not found")
@@ -124,6 +152,19 @@ async def delete_word(word_id: int):
     for entry in frequency_dict:
         if entry['id'] == word_id:
             frequency_dict.remove(entry)
+            print("DELETE")
+            print(frequency_dict[0])
+            save_to_file()
             return {"message": "Word deleted successfully", "word": entry}
     
     raise HTTPException(status_code=404, detail="Word not found")
+
+@app.post("/clear_uploaded_files")
+async def clear_uploaded_files():
+    uploaded_files_dir = "./uploaded_files"
+    if os.path.exists(uploaded_files_dir):
+        shutil.rmtree(uploaded_files_dir)
+        os.makedirs(uploaded_files_dir)
+    global uploaded_file_path
+    uploaded_file_path = None
+    return {"message": "Uploaded files cleared successfully"}
