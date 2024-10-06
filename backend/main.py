@@ -44,7 +44,7 @@ async def upload_file(
         sorted_dict = await sort_dictionary(sortOption)
 
         if searchTerm:
-            sorted_dict = [entry for entry in sorted_dict if searchTerm.lower() in entry['word'].lower()]
+            sorted_dict = [entry for entry in sorted_dict if entry['word'].lower().startswith(searchTerm.lower())]
 
         if fetch_all:
             return {
