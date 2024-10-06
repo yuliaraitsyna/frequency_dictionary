@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from enum import Enum
@@ -21,6 +21,13 @@ class SortOption(str, Enum):
 
 frequency_dict = []
 
+def get_next_id():
+    if not frequency_dict:
+        return 1 
+    else:
+        max_id = max(entry['id'] for entry in frequency_dict)
+        return max_id + 1
+
 @app.post("/upload_file")
 async def upload_file(
     file: UploadFile = File(...),
@@ -36,8 +43,8 @@ async def upload_file(
     try:
         text = content.decode('utf-8')
         frequency_dict = [
-            {"word": word, "frequency": int(freq)}
-            for line in text.splitlines() if line.strip()
+            {"id": index + 1, "word": word, "frequency": int(freq)}
+            for index, line in enumerate(text.splitlines()) if line.strip()
             for word, freq in [line.split('\t')]
         ]
         
@@ -86,3 +93,37 @@ async def sort_dictionary(sortOption: SortOption):
         return sorted(frequency_dict, key=lambda x: x['frequency'], reverse=True)
     else:
         raise HTTPException(status_code=400, detail="Invalid sort option")
+
+@app.post("/add_word")
+async def add_word(word: str = Body(...), frequency: int = Body(...)):
+    global frequency_dict
+    if any(entry['word'] == word for entry in frequency_dict):
+        raise HTTPException(status_code=400, delail="Word already exists.")
+    
+    new_id = get_next_id()
+    new_word = {"id": new_id, "word": word, "frequency": frequency}
+    frequency_dict.append(new_word)
+    return {"message": "Word added successfully", "word": new_word}
+
+@app.put("/edit_word/{word_id}")
+async def edit_word(word_id: int, word: Optional[str] = Body(None), frequency: Optional[int] = Body(None)):
+    global frequency_dict
+    for entry in frequency_dict:
+        if entry['id'] == word_id:
+            if word:
+                entry['word'] = word
+            if frequency is not None:
+                entry['frequency'] = frequency
+            return {"message": "Word updated successfully", "word": entry}
+    
+    raise HTTPException(status_code=404, detail="Word not found")
+
+@app.delete("/delete_word/{word_id}")
+async def delete_word(word_id: int):
+    global frequency_dict
+    for entry in frequency_dict:
+        if entry['id'] == word_id:
+            frequency_dict.remove(entry)
+            return {"message": "Word deleted successfully", "word": entry}
+    
+    raise HTTPException(status_code=404, detail="Word not found")

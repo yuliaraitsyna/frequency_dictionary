@@ -1,6 +1,6 @@
 import React from 'react';
 import { Container } from '@mui/material';
-import FileUploader from './components/FileUploader';
+import FileUploader from './components/FileUploader/FileUploader';
 
 const App: React.FC = () => {
   return (
