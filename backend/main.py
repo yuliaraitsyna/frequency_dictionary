@@ -129,7 +129,7 @@ async def add_word(word: str = Body(...), frequency: int = Body(...)):
     new_id = get_next_id()
     new_word = {"id": new_id, "word": word, "frequency": frequency}
     frequency_dict.append(new_word)
-    save_to_file()  # Save the added word to the uploaded file
+    save_to_file()
     return {"message": "Word added successfully", "word": new_word}
 
 @app.put("/edit_word/{word_id}")

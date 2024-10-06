@@ -189,7 +189,7 @@ const FileUploader: React.FC = () => {
 
             <Dialog open={open} onClose={handleClose}>
                 <DialogContent>
-                    <Form action={formAction} word={editedWord} close={handleClose} />
+                    <Form action={formAction} word={editedWord} close={handleClose} setDictionary={handleUpdate} />
                 </DialogContent>
             </Dialog>
         </Container>
