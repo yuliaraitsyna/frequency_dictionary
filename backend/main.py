@@ -135,16 +135,29 @@ async def add_word(word: str = Body(...), frequency: int = Body(...)):
 @app.put("/edit_word/{word_id}")
 async def edit_word(word_id: int, word: Optional[str] = Body(None), frequency: Optional[int] = Body(None)):
     global frequency_dict
-    for entry in frequency_dict:
-        if entry['id'] == word_id:
-            if word:
-                entry['word'] = word
-            if frequency is not None:
-                entry['frequency'] = frequency
-            save_to_file()
-            return {"message": "Word updated successfully", "word": entry}
+    current_entry = next((entry for entry in frequency_dict if entry['id'] == word_id), None)
     
-    raise HTTPException(status_code=404, detail="Word not found")
+    if not current_entry:
+        raise HTTPException(status_code=404, detail="Word not found")
+
+    if word:
+        existing_entry = next((entry for entry in frequency_dict if entry['word'] == word), None)
+        
+        if existing_entry:
+            if frequency is not None:
+                existing_entry['frequency'] += frequency
+            else:
+                existing_entry['frequency'] += current_entry['frequency']
+            frequency_dict.remove(current_entry)
+            save_to_file()
+            return {"message": "Word updated successfully and frequencies summed", "word": existing_entry}
+
+        current_entry['word'] = word
+    if frequency is not None:
+        current_entry['frequency'] = frequency
+
+    save_to_file()
+    return {"message": "Word updated successfully", "word": current_entry}
 
 @app.delete("/delete_word/{word_id}")
 async def delete_word(word_id: int):
