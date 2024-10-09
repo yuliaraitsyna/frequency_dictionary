@@ -16,6 +16,9 @@ const DictionaryList: React.FC<DictionaryListProps> = ({ dictionary, openForm, s
     }
 
     const handleDelete = async (word: Word) => {
+        if (!window.confirm("Are you sure you want to delete this word?")) {
+            return;
+        }
         try {
             const response = await fetch(`http://localhost:8000/delete_word/${word.id}`, {
                 method: "DELETE",
