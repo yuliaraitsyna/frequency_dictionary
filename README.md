@@ -21,7 +21,9 @@ The FAST API implemented on Python processes this files and includes the followi
 - edit words
 - sort dictionary
 - search words through dictionary
+- add texts to process them into frequency dictionaries
 
 ## Interface
-<img width="1012" alt="image" src="https://github.com/user-attachments/assets/f059e530-a97f-4140-a4a6-2a74b553754e">
+<img width="921" alt="image" src="https://github.com/user-attachments/assets/227777d3-7ae7-4b7c-b781-de89e0c6e187">
+
 
